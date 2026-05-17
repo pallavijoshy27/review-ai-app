@@ -1,65 +1,320 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+
+type Review = {
+  id: number;
+  review_text: string;
+  ai_response: string;
+};
+
+type BusinessProfile = {
+  id: number;
+  name: string | null;
+  business_info: string | null;
+  tone: string | null;
+};
 
 export default function Home() {
+  const [review, setReview] = useState("");
+  const [response, setResponse] = useState("");
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [tone, setTone] = useState("professional");
+  const [businessName, setBusinessName] = useState("");
+  const [businessInfo, setBusinessInfo] = useState("");
+  const [profileId, setProfileId] = useState<number | null>(null);
+  const [copiedId, setCopiedId] = useState<number | "latest" | null>(null);
+  const [profileMessage, setProfileMessage] = useState("");
+
+  async function fetchReviews() {
+    const { data } = await supabase
+      .from("reviews")
+      .select("*")
+      .order("id", { ascending: false });
+
+    if (data) setReviews(data);
+  }
+
+  async function fetchBusinessProfile() {
+    const { data } = await supabase
+      .from("business_profiles")
+      .select("*")
+      .order("id", { ascending: true })
+      .limit(1)
+      .maybeSingle<BusinessProfile>();
+
+    if (data) {
+      setProfileId(data.id);
+      setBusinessName(data.name || "");
+      setBusinessInfo(data.business_info || "");
+      setTone(data.tone || "professional");
+    }
+  }
+
+  async function saveBusinessProfile() {
+    setSavingProfile(true);
+    setProfileMessage("");
+
+    if (profileId) {
+      const { error } = await supabase
+        .from("business_profiles")
+        .update({
+          name: businessName,
+          business_info: businessInfo,
+          tone,
+        })
+        .eq("id", profileId);
+
+      if (error) {
+        setProfileMessage("Could not save profile.");
+      } else {
+        setProfileMessage("Business profile saved.");
+      }
+    } else {
+      const { data, error } = await supabase
+        .from("business_profiles")
+        .insert({
+          name: businessName,
+          business_info: businessInfo,
+          tone,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        setProfileMessage("Could not save profile.");
+      } else {
+        setProfileId(data.id);
+        setProfileMessage("Business profile saved.");
+      }
+    }
+
+    setSavingProfile(false);
+  }
+
+  async function deleteReview(id: number) {
+    await supabase.from("reviews").delete().eq("id", id);
+    fetchReviews();
+  }
+
+  async function copyText(text: string, id: number | "latest") {
+    await navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 1500);
+  }
+
+  useEffect(() => {
+    fetchReviews();
+    fetchBusinessProfile();
+  }, []);
+
+  async function generateReply() {
+    if (!review.trim()) return;
+
+    setLoading(true);
+    setResponse("");
+
+    try {
+      const res = await fetch("/api/generate-response", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          review,
+          tone,
+          businessInfo,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.error) {
+        setResponse(data.error);
+      } else {
+        setResponse(data.response);
+        setReview("");
+        fetchReviews();
+      }
+    } catch {
+      setResponse("Something went wrong. Please try again.");
+    }
+
+    setLoading(false);
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+    <main className="min-h-screen bg-black text-white">
+      <section className="mx-auto max-w-6xl px-6 py-10">
+        <h1 className="mb-4 text-5xl font-bold">
+          AI Review Responder
+        </h1>
+
+        <p className="mb-10 text-zinc-400">
+          Generate, save, and copy brand-aware review replies.
+        </p>
+
+        <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
+          <section className="rounded-3xl bg-zinc-950 p-6 ring-1 ring-zinc-800">
+            <h2 className="mb-6 text-2xl font-semibold">
+              Business Profile
+            </h2>
+
+            <label className="mb-2 block text-sm text-zinc-400">
+              Business Name
+            </label>
+
+            <input
+              value={businessName}
+              onChange={(e) => setBusinessName(e.target.value)}
+              placeholder="Example: Tikka Indian Cuisine"
+              className="mb-6 w-full rounded-xl bg-zinc-900 p-4 text-white outline-none ring-1 ring-zinc-800"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+            <label className="mb-2 block text-sm text-zinc-400">
+              Response Tone
+            </label>
+
+            <select
+              value={tone}
+              onChange={(e) => setTone(e.target.value)}
+              className="mb-6 w-full rounded-xl bg-zinc-900 p-4 text-white outline-none ring-1 ring-zinc-800"
+            >
+              <option value="professional">Professional</option>
+              <option value="friendly">Friendly</option>
+              <option value="luxury">Luxury</option>
+              <option value="funny">Funny</option>
+              <option value="apologetic">Apologetic</option>
+            </select>
+
+            <label className="mb-2 block text-sm text-zinc-400">
+              Business Information
+            </label>
+
+            <textarea
+              value={businessInfo}
+              onChange={(e) => setBusinessInfo(e.target.value)}
+              placeholder="Cuisine, location, popular dishes, service style, policies..."
+              className="h-48 w-full rounded-xl bg-zinc-900 p-4 text-white outline-none ring-1 ring-zinc-800"
+            />
+
+            <button
+              type="button"
+              onClick={saveBusinessProfile}
+              className="mt-6 rounded-xl bg-white px-6 py-3 font-medium text-black"
+            >
+              {savingProfile ? "Saving..." : "Save Business Profile"}
+            </button>
+
+            {profileMessage && (
+              <p className="mt-4 text-sm text-zinc-400">
+                {profileMessage}
+              </p>
+            )}
+          </section>
+
+          <section className="rounded-3xl bg-zinc-950 p-6 ring-1 ring-zinc-800">
+            <h2 className="mb-6 text-2xl font-semibold">
+              Generate New Reply
+            </h2>
+
+            <textarea
+              value={review}
+              onChange={(e) => setReview(e.target.value)}
+              placeholder="Paste customer review here..."
+              className="h-48 w-full rounded-xl bg-zinc-900 p-4 text-white outline-none ring-1 ring-zinc-800"
+            />
+
+            <button
+              type="button"
+              onClick={generateReply}
+              disabled={loading || !review.trim()}
+              className="mt-6 rounded-xl bg-white px-6 py-3 font-medium text-black disabled:opacity-50"
+            >
+              {loading ? "Generating..." : "Generate AI Reply"}
+            </button>
+
+            {response && (
+              <div className="mt-8 rounded-2xl bg-zinc-900 p-6">
+                <h3 className="mb-4 text-xl font-semibold">
+                  Latest AI Response
+                </h3>
+
+                <p className="mb-4 leading-8 text-zinc-300">
+                  {response}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => copyText(response, "latest")}
+                  className="rounded-xl bg-white px-4 py-2 text-black"
+                >
+                  {copiedId === "latest" ? "Copied!" : "Copy Reply"}
+                </button>
+              </div>
+            )}
+          </section>
         </div>
-      </main>
-    </div>
+
+        <section className="mt-10 rounded-3xl bg-zinc-950 p-6 ring-1 ring-zinc-800">
+          <div className="mb-6 flex items-center justify-between">
+            <h2 className="text-3xl font-bold">
+              Saved Reviews ({reviews.length})
+            </h2>
+
+            <button
+              type="button"
+              onClick={fetchReviews}
+              className="rounded-xl bg-zinc-800 px-5 py-3"
+            >
+              Refresh
+            </button>
+          </div>
+
+          <div className="space-y-6">
+            {reviews.map((item) => (
+              <div key={item.id} className="rounded-2xl bg-zinc-900 p-6">
+                <p className="mb-3 text-sm uppercase tracking-[0.2em] text-zinc-500">
+                  Customer Review
+                </p>
+
+                <p className="mb-6 text-zinc-300">
+                  {item.review_text}
+                </p>
+
+                <p className="mb-3 text-sm uppercase tracking-[0.2em] text-zinc-500">
+                  AI Response
+                </p>
+
+                <p className="mb-6 text-zinc-400">
+                  {item.ai_response}
+                </p>
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => copyText(item.ai_response, item.id)}
+                    className="rounded-xl bg-white px-4 py-2 text-black"
+                  >
+                    {copiedId === item.id ? "Copied!" : "Copy Reply"}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => deleteReview(item.id)}
+                    className="rounded-xl bg-red-600 px-4 py-2 text-white"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      </section>
+    </main>
   );
 }
