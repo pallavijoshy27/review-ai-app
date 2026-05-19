@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
 type Review = {
   id: number;
   review_text: string;
   ai_response: string;
+  user_id: string | null;
 };
 
 type BusinessProfile = {
@@ -14,9 +16,15 @@ type BusinessProfile = {
   name: string | null;
   business_info: string | null;
   tone: string | null;
+  user_id: string | null;
 };
 
 export default function Home() {
+  const router = useRouter();
+
+  const [userId, setUserId] = useState<string | null>(null);
+  const [loadingPage, setLoadingPage] = useState(true);
+
   const [review, setReview] = useState("");
   const [response, setResponse] = useState("");
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -29,19 +37,47 @@ export default function Home() {
   const [copiedId, setCopiedId] = useState<number | "latest" | null>(null);
   const [profileMessage, setProfileMessage] = useState("");
 
-  async function fetchReviews() {
+  async function checkUser() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    if (!session) {
+      router.push("/login");
+      return;
+    }
+
+    setUserId(session.user.id);
+    setLoadingPage(false);
+
+    fetchReviews(session.user.id);
+    fetchBusinessProfile(session.user.id);
+  }
+
+  async function logout() {
+    await supabase.auth.signOut();
+    router.push("/login");
+  }
+
+  async function fetchReviews(currentUserId = userId) {
+    if (!currentUserId) return;
+
     const { data } = await supabase
       .from("reviews")
       .select("*")
+      .eq("user_id", currentUserId)
       .order("id", { ascending: false });
 
     if (data) setReviews(data);
   }
 
-  async function fetchBusinessProfile() {
+  async function fetchBusinessProfile(currentUserId = userId) {
+    if (!currentUserId) return;
+
     const { data } = await supabase
       .from("business_profiles")
       .select("*")
+      .eq("user_id", currentUserId)
       .order("id", { ascending: true })
       .limit(1)
       .maybeSingle<BusinessProfile>();
@@ -55,6 +91,8 @@ export default function Home() {
   }
 
   async function saveBusinessProfile() {
+    if (!userId) return;
+
     setSavingProfile(true);
     setProfileMessage("");
 
@@ -65,8 +103,10 @@ export default function Home() {
           name: businessName,
           business_info: businessInfo,
           tone,
+          user_id: userId,
         })
-        .eq("id", profileId);
+        .eq("id", profileId)
+        .eq("user_id", userId);
 
       if (error) {
         setProfileMessage("Could not save profile.");
@@ -80,6 +120,7 @@ export default function Home() {
           name: businessName,
           business_info: businessInfo,
           tone,
+          user_id: userId,
         })
         .select()
         .single();
@@ -96,8 +137,15 @@ export default function Home() {
   }
 
   async function deleteReview(id: number) {
-    await supabase.from("reviews").delete().eq("id", id);
-    fetchReviews();
+    if (!userId) return;
+
+    await supabase
+      .from("reviews")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", userId);
+
+    fetchReviews(userId);
   }
 
   async function copyText(text: string, id: number | "latest") {
@@ -107,12 +155,11 @@ export default function Home() {
   }
 
   useEffect(() => {
-    fetchReviews();
-    fetchBusinessProfile();
+    checkUser();
   }, []);
 
   async function generateReply() {
-    if (!review.trim()) return;
+    if (!review.trim() || !userId) return;
 
     setLoading(true);
     setResponse("");
@@ -127,6 +174,7 @@ export default function Home() {
           review,
           tone,
           businessInfo,
+          userId,
         }),
       });
 
@@ -137,7 +185,7 @@ export default function Home() {
       } else {
         setResponse(data.response);
         setReview("");
-        fetchReviews();
+        fetchReviews(userId);
       }
     } catch {
       setResponse("Something went wrong. Please try again.");
@@ -146,16 +194,36 @@ export default function Home() {
     setLoading(false);
   }
 
+  if (loadingPage) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-black text-white">
+        <p className="text-2xl">Loading...</p>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-black text-white">
       <section className="mx-auto max-w-6xl px-6 py-10">
-        <h1 className="mb-4 text-5xl font-bold">
-          AI Review Responder
-        </h1>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="mb-4 text-5xl font-bold">
+              AI Review Responder
+            </h1>
 
-        <p className="mb-10 text-zinc-400">
-          Generate, save, and copy brand-aware review replies.
-        </p>
+            <p className="text-zinc-400">
+              Generate, save, and copy brand-aware review replies.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={logout}
+            className="rounded-xl bg-red-600 px-5 py-3 font-medium text-white"
+          >
+            Logout
+          </button>
+        </div>
 
         <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
           <section className="rounded-3xl bg-zinc-950 p-6 ring-1 ring-zinc-800">
@@ -267,7 +335,7 @@ export default function Home() {
 
             <button
               type="button"
-              onClick={fetchReviews}
+              onClick={() => fetchReviews(userId)}
               className="rounded-xl bg-zinc-800 px-5 py-3"
             >
               Refresh

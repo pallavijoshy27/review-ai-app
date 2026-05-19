@@ -12,10 +12,18 @@ export async function POST(req: Request) {
     const review = body.review;
     const tone = body.tone;
     const businessInfo = body.businessInfo;
+    const userId = body.userId;
 
     if (!review) {
       return Response.json(
         { error: "Review is required." },
+        { status: 400 }
+      );
+    }
+
+    if (!userId) {
+      return Response.json(
+        { error: "User is required." },
         { status: 400 }
       );
     }
@@ -57,6 +65,7 @@ Rules:
       .insert({
         review_text: review,
         ai_response: aiResponse,
+        user_id: userId,
       });
 
     if (error) {
