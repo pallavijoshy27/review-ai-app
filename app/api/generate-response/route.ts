@@ -1,31 +1,29 @@
 import OpenAI from "openai";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+const supabase = supabaseAdmin;
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
     const review = body.review;
-    const tone = body.tone;
-    const businessInfo = body.businessInfo;
+    const tone = body.tone || "professional";
+    const businessInfo = body.businessInfo || "";
     const userId = body.userId;
+    const locationId = body.locationId;
+    const reviewId = body.reviewId;
 
     if (!review) {
-      return Response.json(
-        { error: "Review is required." },
-        { status: 400 }
-      );
+      return Response.json({ error: "Review is required." }, { status: 400 });
     }
 
     if (!userId) {
-      return Response.json(
-        { error: "User is required." },
-        { status: 400 }
-      );
+      return Response.json({ error: "User is required." }, { status: 400 });
     }
 
     const completion = await openai.chat.completions.create({
@@ -57,29 +55,44 @@ Rules:
       ],
     });
 
-    const aiResponse =
-      completion.choices[0].message.content || "";
+    const aiResponse = completion.choices[0].message.content || "";
 
-    const { error } = await supabase
-      .from("reviews")
-      .insert({
+    if (reviewId) {
+      const { error } = await supabase
+        .from("reviews")
+        .update({
+          ai_response: aiResponse,
+        })
+        .eq("id", reviewId)
+        .eq("user_id", userId);
+
+      if (error) {
+        return Response.json(
+          { error: `Supabase error: ${error.message}` },
+          { status: 500 }
+        );
+      }
+    } else {
+      const { error } = await supabase.from("reviews").insert({
         review_text: review,
         ai_response: aiResponse,
         user_id: userId,
+        location_id: locationId || null,
       });
 
-    if (error) {
-      return Response.json(
-        { error: `Supabase error: ${error.message}` },
-        { status: 500 }
-      );
+      if (error) {
+        return Response.json(
+          { error: `Supabase error: ${error.message}` },
+          { status: 500 }
+        );
+      }
     }
 
     return Response.json({
       response: aiResponse,
     });
   } catch (error) {
-    console.error(error);
+    console.log(error);
 
     return Response.json(
       { error: "Server error. Check terminal for details." },
