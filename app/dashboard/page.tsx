@@ -806,22 +806,7 @@ const readyToPostCount = reviews.filter(
             {message}
           </div>
         )}
-       <section className="mb-8 rounded-3xl bg-zinc-950 p-6 ring-1 ring-zinc-800">
-  <h2 className="text-2xl font-bold">
-    Launch Checklist
-  </h2>
-
-  <div className="mt-4 grid gap-3 text-sm text-zinc-400 md:grid-cols-2">
-    <p>✅ Google connection working</p>
-    <p>✅ Google review import working</p>
-    <p>✅ AI reply drafting working</p>
-    <p>✅ Google reply publishing working</p>
-    <p>✅ Stripe test checkout working</p>
-    <p>✅ Stripe webhook working</p>
-    <p>⬜ Switch Stripe to live mode</p>
-    <p>⬜ Final new-user test</p>
-  </div>
-</section>
+       
        <div className="mb-8">
   <h1 className="text-4xl font-bold">
     👋 Welcome, {userEmail ? userEmail.split("@")[0] : "there"}
