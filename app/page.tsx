@@ -39,7 +39,7 @@ type Location = {
 
 export default function Home() {
   const router = useRouter();
-
+  const [userEmail, setUserEmail] = useState("");
   const [userId, setUserId] = useState<string | null>(null);
   const [loadingPage, setLoadingPage] = useState(true);
   const [subscription, setSubscription] = useState<any>(null);
@@ -53,6 +53,7 @@ export default function Home() {
   const [postingId, setPostingId] = useState<number | null>(null);
   const [generatingId, setGeneratingId] = useState<number | null>(null);
   const [bulkGenerating, setBulkGenerating] = useState(false);
+  const [bulkPosting, setBulkPosting] = useState(false);
 
   const [tone, setTone] = useState("professional");
   const [businessName, setBusinessName] = useState("");
@@ -79,6 +80,7 @@ async function fetchSubscription(currentUserId: string) {
 
   if (data) setSubscription(data);
 }
+
 async function ensureSubscription(currentUserId: string) {
   const { data: existing } = await supabase
     .from("subscriptions")
@@ -112,6 +114,7 @@ setSelectedLocationId(null);
 setMessage("");
 
     setUserId(session.user.id);
+    setUserEmail(session.user.email || "");
     setLoadingPage(false);
     await ensureSubscription(session.user.id);
     await fetchSubscription(session.user.id);
@@ -125,23 +128,38 @@ setMessage("");
   }
 
   function connectGoogle() {
-    if (!userId) return;
+    if (!userId) {
+      setMessage("Please log in again before connecting Google.");
+      return;
+    }
+  
+    setMessage("Connecting to Google...");
     window.location.href = `/api/google/connect?userId=${userId}`;
   }
 
   async function syncGoogleLocations() {
-    if (!userId) return;
-
-    setMessage("Syncing Google locations...");
-
-    const res = await fetch(`/api/google/sync-locations?userId=${userId}`);
-    const data = await res.json();
-
-    if (data.success) {
-      setMessage(`Synced ${data.savedCount || data.googleCount || 0} locations.`);
-      await fetchLocations(userId);
-    } else {
-      setMessage(data.error || "Could not sync Google locations.");
+    if (!userId) {
+      setMessage("Please log in again before syncing Google locations.");
+      return;
+    }
+  
+    try {
+      setMessage("Syncing Google locations...");
+  
+      const res = await fetch(`/api/google/sync-locations?userId=${userId}`);
+      const data = await res.json();
+  
+      if (data.success) {
+        setMessage(
+          `Synced ${data.savedCount || data.googleCount || 0} Google locations.`
+        );
+        await fetchLocations(userId);
+      } else {
+        setMessage(data.error || "Could not sync Google locations.");
+      }
+    } catch (error) {
+      console.log(error);
+      setMessage("Something went wrong while syncing Google locations.");
     }
   }
 
@@ -248,43 +266,71 @@ setMessage("");
   }
 
   async function importGoogleReviews() {
-    if (!userId || !selectedLocationId) return;
-
-    setImporting(true);
-    setMessage("Importing Google reviews...");
-
-    const res = await fetch("/api/google/import-reviews", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        userId,
-        locationId: selectedLocationId,
-      }),
-    });
-
-    const data = await res.json();
-
-    if (data.success) {
-      setMessage(
-        `Imported reviews. Fetched: ${data.fetched}, inserted: ${data.inserted}, updated: ${data.updated}.`
-      );
-      await fetchReviews(userId, selectedLocationId);
-    } else {
-      setMessage(data.error || "Could not import Google reviews.");
+    if (!userId) {
+      setMessage("Please log in again before checking Google reviews.");
+      return;
     }
-
-    setImporting(false);
+  
+    if (!selectedLocationId) {
+      setMessage("Please select a location before checking Google reviews.");
+      return;
+    }
+  
+    try {
+      setImporting(true);
+      setMessage("Checking Google for new reviews...");
+  
+      const res = await fetch("/api/google/import-reviews", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId,
+          locationId: selectedLocationId,
+        }),
+      });
+  
+      const data = await res.json();
+  
+      if (data.success) {
+        setMessage(
+          `Google reviews checked. Fetched: ${data.fetched}, inserted: ${data.inserted}, updated: ${data.updated}.`
+        );
+        await fetchReviews(userId, selectedLocationId);
+      } else {
+        setMessage(data.error || "Could not check Google reviews.");
+      }
+    } catch (error) {
+      console.log(error);
+      setMessage("Something went wrong while checking Google reviews.");
+    }
+  
+    finally {
+      setImporting(false);
+    }
   }
 
   async function generateNext10Replies() {
-    if (!userId || !selectedLocationId) return;
+    if (!userId) {
+      setMessage("Please log in again before drafting AI replies.");
+      return;
+    }
   
-    setBulkGenerating(true);
-    setMessage("Generating next 10 replies...");
+    if (!selectedLocationId) {
+      setMessage("Please select a location before drafting AI replies.");
+      return;
+    }
+  
+    if (needsAiReplyCount === 0) {
+      setMessage("No reviews need AI replies right now.");
+      return;
+    }
   
     try {
+      setBulkGenerating(true);
+      setMessage("Drafting AI replies...");
+  
       const res = await fetch("/api/generate-bulk-replies", {
         method: "POST",
         headers: {
@@ -302,81 +348,96 @@ setMessage("");
       const data = await res.json();
   
       if (data.success) {
-        setMessage(`Generated ${data.generated} replies.`);
+        setMessage(`Drafted ${data.generated} AI replies.`);
         await fetchReviews(userId, selectedLocationId);
       } else {
-        setMessage(data.error || "Could not generate bulk replies.");
+        setMessage(data.error || "Could not draft AI replies.");
       }
     } catch (error) {
       console.log(error);
-      setMessage("Bulk generation failed.");
+      setMessage("Something went wrong while drafting AI replies.");
     }
-  
+  finally
+  {
     setBulkGenerating(false);
   }
+  }
   async function generateReplyForSavedReview(item: Review) {
-    if (!userId) return;
-
-    setGeneratingId(item.id);
-
-    const res = await fetch("/api/generate-response", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        review: item.review_text,
-        tone,
-        businessInfo,
-        userId,
-        locationId: item.location_id,
-        reviewId: item.id,
-      }),
-    });
-
-    const data = await res.json();
-
-    if (data.response) {
-      await supabase
-        .from("reviews")
-        .update({
-          ai_response: data.response,
-        })
-        .eq("id", item.id)
-        .eq("user_id", userId);
-
-      setMessage("AI reply generated.");
-      await fetchReviews(userId, selectedLocationId);
-    } else {
-      setMessage(data.error || "Could not generate reply.");
+    if (!userId) {
+      setMessage("Please log in again before drafting an AI reply.");
+      return;
     }
-
+  
+    if (!item.review_text) {
+      setMessage("This review has no written text to reply to.");
+      return;
+    }
+  
+    try {
+      setGeneratingId(item.id);
+      setMessage("Drafting AI reply...");
+  
+      const res = await fetch("/api/generate-response", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          review: item.review_text,
+          tone,
+          businessInfo,
+          userId,
+          locationId: item.location_id,
+          reviewId: item.id,
+        }),
+      });
+  
+      const data = await res.json();
+  
+      if (data.response) {
+        await supabase
+          .from("reviews")
+          .update({
+            ai_response: data.response,
+          })
+          .eq("id", item.id)
+          .eq("user_id", userId);
+  
+        setMessage("AI reply drafted.");
+        await fetchReviews(userId, selectedLocationId);
+      } else {
+        setMessage(data.error || "Could not draft AI reply.");
+      }
+    } catch (error) {
+      console.log(error);
+      setMessage("Something went wrong while drafting the AI reply.");
+    }
+  finally {
     setGeneratingId(null);
   }
-
+  }
   async function postReplyToGoogle(item: Review) {
     if (!userId) {
-      setMessage("Missing user ID.");
+      setMessage("Please log in again before publishing to Google.");
       return;
     }
   
     if (!item.google_review_name) {
-      setMessage("Missing Google review name.");
+      setMessage("This review is missing its Google review ID.");
       return;
     }
   
-    if (!item.ai_response) {
-      setMessage("Generate an AI reply first.");
+    const finalReply = editingReplies[item.id] ?? item.ai_response;
+  
+    if (!finalReply || !finalReply.trim()) {
+      setMessage("Please draft or write a reply before publishing.");
       return;
     }
-  
-    setPostingId(item.id);
-    setMessage("Posting reply to Google...");
   
     try {
-      const finalReply =
-  editingReplies[item.id] ??
-  item.ai_response;
+      setPostingId(item.id);
+      setMessage("Publishing reply to Google...");
+  
       const res = await fetch("/api/google/reply", {
         method: "POST",
         headers: {
@@ -386,49 +447,140 @@ setMessage("");
           userId,
           reviewName: item.google_review_name,
           comment: finalReply,
-
         }),
       });
   
       const data = await res.json();
-  
-      console.log("Google reply response:", data);
   
       if (data.status === 200) {
         const { error } = await supabase
           .from("reviews")
           .update({
             ai_response: finalReply,
-  review_reply: finalReply,
-  posted_to_google: true,
+            review_reply: finalReply,
+            posted_to_google: true,
           })
           .eq("id", item.id)
           .eq("user_id", userId);
   
         if (error) {
-          console.error(error);
           setMessage(
-            `Reply posted to Google but DB update failed: ${error.message}`
+            `Reply was published to Google, but the app could not update the database: ${error.message}`
           );
         } else {
-          setMessage("Reply posted to Google successfully.");
+          setMessage("Reply published to Google successfully.");
           await fetchReviews(userId, selectedLocationId);
+          await fetchSubscription(userId);
         }
       } else {
         setMessage(
-          `Google reply failed: ${data.status || "unknown"} ${data.statusText || ""} ${data.raw || data.error || ""}`
-);
-  
-        console.log("Google reply error:", data);
+          data.error ||
+            data.raw ||
+            "Google rejected the reply. Please try again."
+        );
       }
     } catch (error) {
       console.log(error);
-      setMessage("Post failed. Check browser console.");
+      setMessage("Something went wrong while publishing to Google.");
     }
-  
+  finalReply
+  {
     setPostingId(null);
   }
-
+  }async function postAllReadyReplies() {
+    if (!userId) {
+      setMessage("Please log in again before publishing replies.");
+      return;
+    }
+  
+    const readyReviews = filteredReviews.filter(
+      (review) =>
+        review.google_review_name &&
+        review.ai_response &&
+        !review.review_reply &&
+        !review.posted_to_google
+    );
+  
+    if (readyReviews.length === 0) {
+      setMessage("No approved replies are ready to publish.");
+      return;
+    }
+  
+    const confirmed = window.confirm(
+      `Publish ${readyReviews.length} approved replies to Google? Please make sure you reviewed them first.`
+    );
+  
+    if (!confirmed) return;
+  
+    try {
+      setBulkPosting(true);
+      setMessage(`Publishing ${readyReviews.length} approved replies to Google...`);
+  
+      let successCount = 0;
+      let failCount = 0;
+  
+      for (const review of readyReviews) {
+        try {
+          const finalReply = editingReplies[review.id] ?? review.ai_response;
+  
+          if (!finalReply || !finalReply.trim()) {
+            failCount++;
+            continue;
+          }
+  
+          const res = await fetch("/api/google/reply", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              userId,
+              reviewName: review.google_review_name,
+              comment: finalReply,
+            }),
+          });
+  
+          const data = await res.json();
+  
+          if (data.status === 200) {
+            const { error } = await supabase
+              .from("reviews")
+              .update({
+                ai_response: finalReply,
+                review_reply: finalReply,
+                posted_to_google: true,
+              })
+              .eq("id", review.id)
+              .eq("user_id", userId);
+  
+            if (error) {
+              failCount++;
+            } else {
+              successCount++;
+            }
+          } else {
+            failCount++;
+          }
+        } catch (error) {
+          console.log(error);
+          failCount++;
+        }
+      }
+  
+      await fetchReviews(userId, selectedLocationId);
+      await fetchSubscription(userId);
+  
+      setMessage(
+        `Publishing finished. Successful: ${successCount}. Failed: ${failCount}.`
+      );
+    } catch (error) {
+      console.log(error);
+      setMessage("Something went wrong while publishing approved replies.");
+    }
+  finally {
+    setBulkPosting(false);
+  }
+  }
   async function generateManualReply() {
     if (!manualReview.trim() || !userId) return;
 
@@ -477,27 +629,65 @@ setMessage("");
       setCopiedId(null);
     }, 1500);
   }
-
+  async function openCustomerPortal() {
+    if (!userId) {
+      setMessage("Please log in again before managing your subscription.");
+      return;
+    }
+  
+    try {
+      const response = await fetch("/api/stripe/customer-portal", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId,
+        }),
+      });
+  
+      const data = await response.json();
+  
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setMessage(data.error || "Could not open subscription management.");
+      }
+    } catch (error) {
+      console.log(error);
+      setMessage("Something went wrong opening subscription management.");
+    }
+  }
   async function createCheckoutSession(plan: "starter" | "pro") {
-    if (!userId) return;
+    if (!userId) {
+      setMessage("Please log in again before upgrading your plan.");
+      return;
+    }
   
-    const res = await fetch("/api/stripe/create-checkout-session", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        userId,
-        plan,
-      }),
-    });
+    try {
+      setMessage("Opening secure checkout...");
   
-    const data = await res.json();
+      const res = await fetch("/api/stripe/create-checkout-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userId,
+          plan,
+        }),
+      });
   
-    if (data.url) {
-      window.location.href = data.url;
-    } else {
-      setMessage(data.error || "Could not start checkout.");
+      const data = await res.json();
+  
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setMessage(data.error || "Could not start checkout.");
+      }
+    } catch (error) {
+      console.log(error);
+      setMessage("Something went wrong opening checkout.");
     }
   }
   useEffect(() => {
@@ -530,7 +720,44 @@ setMessage("");
   const repliedCount = reviews.filter(
     (r) => r.review_reply || r.posted_to_google
   ).length;
+  
+  const averageRating =
+  reviews.length > 0
+    ? (
+        reviews.reduce(
+          (sum, review) => sum + (review.rating || 0),
+          0
+        ) / reviews.filter((r) => r.rating).length
+      ).toFixed(1)
+    : "0.0";
 
+const aiRepliesGenerated = reviews.filter(
+  (r) => r.ai_response
+).length;
+const readyToPostCount = reviews.filter(
+  (r) =>
+    r.google_review_name &&
+    r.ai_response &&
+    !r.review_reply &&
+    !r.posted_to_google
+).length;
+  const usagePercent = subscription
+  ? Math.min(
+      100,
+      Math.round(
+        (subscription.reviews_used / subscription.review_limit) * 100
+      )
+    )
+  : 0;
+  const needsAiReplyCount = reviews.filter(
+    (r) =>
+      !r.ai_response &&
+      !r.review_reply &&
+      !r.posted_to_google
+  ).length;
+  const completedReplyCount = reviews.filter(
+    (r) => r.review_reply || r.posted_to_google
+  ).length;
   if (loadingPage) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-black text-white">
@@ -579,44 +806,149 @@ setMessage("");
             {message}
           </div>
         )}
+       <section className="mb-8 rounded-3xl bg-zinc-950 p-6 ring-1 ring-zinc-800">
+  <h2 className="text-2xl font-bold">
+    Launch Checklist
+  </h2>
+
+  <div className="mt-4 grid gap-3 text-sm text-zinc-400 md:grid-cols-2">
+    <p>✅ Google connection working</p>
+    <p>✅ Google review import working</p>
+    <p>✅ AI reply drafting working</p>
+    <p>✅ Google reply publishing working</p>
+    <p>✅ Stripe test checkout working</p>
+    <p>✅ Stripe webhook working</p>
+    <p>⬜ Switch Stripe to live mode</p>
+    <p>⬜ Final new-user test</p>
+  </div>
+</section>
+       <div className="mb-8">
+  <h1 className="text-4xl font-bold">
+    👋 Welcome, {userEmail ? userEmail.split("@")[0] : "there"}
+  </h1>
+
+  <p className="mt-2 text-lg text-zinc-400">
+    Let&apos;s take care of your reviews today.
+  </p>
+</div>
+
+<section className="mb-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+  <div className="rounded-3xl bg-zinc-950 p-6 ring-1 ring-zinc-800">
+    <p className="text-sm text-zinc-500">⭐ Average Rating</p>
+    <h3 className="mt-2 text-4xl font-bold">{averageRating}</h3>
+  </div>
+
+  <div className="rounded-3xl bg-zinc-950 p-6 ring-1 ring-zinc-800">
+    <p className="text-sm text-zinc-500">💬 Pending Reviews</p>
+    <h3 className="mt-2 text-4xl font-bold">{pendingCount}</h3>
+  </div>
+
+  <div className="rounded-3xl bg-zinc-950 p-6 ring-1 ring-zinc-800">
+    <p className="text-sm text-zinc-500">🤖 AI Replies</p>
+    <h3 className="mt-2 text-4xl font-bold">{aiRepliesGenerated}</h3>
+  </div>
+
+  <div className="rounded-3xl bg-zinc-950 p-6 ring-1 ring-zinc-800">
+    <p className="text-sm text-zinc-500">✅ Posted Replies</p>
+    <h3 className="mt-2 text-4xl font-bold">{repliedCount}</h3>
+  </div>
+</section>
+
+{reviews.length === 0 && (
+  <div className="mb-8 rounded-3xl bg-zinc-950 p-6 text-zinc-400 ring-1 ring-zinc-800">
+    Connect your Google Business Profile, sync your locations, then import reviews to see your dashboard insights.
+  </div>
+)}
 {subscription && (
   <section className="mb-8 rounded-3xl bg-zinc-950 p-6 ring-1 ring-zinc-800">
-    <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
-      <div>
-        <h2 className="text-2xl font-bold">Your Plan</h2>
-        <p className="mt-2 text-zinc-400">
-          Plan:{" "}
-          <span className="font-semibold text-white">
-            {subscription.plan}
-          </span>
-        </p>
-        <p className="mt-1 text-zinc-400">
-          Replies used: {subscription.reviews_used} /{" "}
-          {subscription.review_limit}
-        </p>
-      </div>
+    <div className="flex flex-col gap-8 lg:flex-row lg:justify-between">
 
-      <div className="flex flex-wrap gap-3">
+<div className="flex-1">
+
+  <h2 className="text-3xl font-bold">
+    {subscription.plan === "free" && "🆓 Free Plan"}
+    {subscription.plan === "starter" && "⭐ Starter Plan"}
+    {subscription.plan === "pro" && "🚀 Pro Plan"}
+  </h2>
+
+  <p className="mt-2 text-zinc-400">
+    {usagePercent}% of this month's replies used
+  </p>
+
+  <div className="mt-6 h-3 w-full overflow-hidden rounded-full bg-zinc-800">
+    <div
+      className="h-full rounded-full bg-blue-600 transition-all duration-700"
+      style={{
+        width: `${usagePercent}%`,
+      }}
+    />
+  </div>
+
+  <div className="mt-6 grid grid-cols-2 gap-6">
+
+    <div>
+      <p className="text-sm text-zinc-500">
+        Replies Used
+      </p>
+
+      <p className="text-3xl font-bold">
+        {subscription.reviews_used}
+      </p>
+    </div>
+
+    <div>
+      <p className="text-sm text-zinc-500">
+        Remaining
+      </p>
+
+      <p className="text-3xl font-bold">
+        {Math.max(
+          0,
+          subscription.review_limit -
+            subscription.reviews_used
+        )}
+      </p>
+    </div>
+
+  </div>
+
+</div>
+
+<div className="flex flex-col gap-3">
+
   <button
     onClick={() => createCheckoutSession("starter")}
-    className="rounded-xl bg-white px-5 py-3 font-medium text-black"
+    className="rounded-xl bg-white px-6 py-3 font-medium text-black"
   >
-    Upgrade to Starter - $11/mo
+    ⭐ Upgrade to Starter
   </button>
 
   <button
     onClick={() => createCheckoutSession("pro")}
-    className="rounded-xl bg-blue-600 px-5 py-3 font-medium text-white"
+    className="rounded-xl bg-blue-600 px-6 py-3 font-medium text-white"
   >
-    Upgrade to Pro - $27/mo
+    🚀 Upgrade to Pro
   </button>
+
+  <button
+    onClick={openCustomerPortal}
+    className="rounded-xl bg-zinc-800 px-6 py-3 text-white"
+  >
+    Manage Subscription
+  </button>
+
 </div>
-    </div>
+
+</div>
   </section>
 )}
         <section className="mb-8 rounded-3xl bg-zinc-950 p-6 ring-1 ring-zinc-800">
           <h2 className="mb-6 text-3xl font-bold">Locations</h2>
-
+          {locations.length === 0 && (
+  <div className="rounded-2xl bg-zinc-900 p-5 text-zinc-400 ring-1 ring-zinc-800 md:col-span-2 lg:col-span-4">
+    No Google locations found yet. Click <span className="font-semibold text-white">Connect Google</span>, then click <span className="font-semibold text-white">Sync Locations</span>.
+  </div>
+)}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {locations.map((location) => (
               <div
@@ -661,15 +993,43 @@ setMessage("");
                 disabled={importing}
                 className="rounded-xl bg-green-600 px-5 py-3 font-medium text-white"
               >
-                {importing ? "Importing..." : "Import Google Reviews"}
+               {importing ? "Checking Google..." : "Check for New Google Reviews"}
               </button>
               <button
   onClick={generateNext10Replies}
-  disabled={bulkGenerating}
-  className="rounded-xl bg-blue-600 px-5 py-3 font-medium text-white"
+  disabled={bulkGenerating || needsAiReplyCount === 0}
+  className={`rounded-xl px-5 py-3 font-medium text-white ${
+    needsAiReplyCount === 0
+      ? "cursor-not-allowed bg-zinc-700"
+      : "bg-blue-600"
+  }`}
 >
-  {bulkGenerating ? "Generating..." : "Generate Next 10 Replies"}
+  {bulkGenerating
+    ? "Generating..."
+    : `Draft AI Replies (${needsAiReplyCount})`}
 </button>
+  
+{reviewFilter !== "replied" && (
+  <div className="flex flex-col gap-2">
+    <button
+      onClick={postAllReadyReplies}
+      disabled={bulkPosting || readyToPostCount === 0}
+      className={`rounded-xl px-5 py-3 font-medium text-white ${
+        readyToPostCount === 0
+          ? "cursor-not-allowed bg-zinc-700"
+          : "bg-green-700"
+      }`}
+    >
+      {bulkPosting
+        ? "Publishing..."
+        : `Publish Approved Replies (${readyToPostCount})`}
+    </button>
+
+    <p className="text-xs text-zinc-500">
+      Replies are published publicly to your Google Business Profile.
+    </p>
+  </div>
+)}
             </div>
           )}
         </section>
@@ -743,6 +1103,28 @@ setMessage("");
             Google Reviews{" "}
             {selectedLocation ? `for ${selectedLocation.name}` : ""}
           </h2>
+          <div className="mb-6 grid gap-4 md:grid-cols-3">
+  <div className="rounded-2xl bg-zinc-900 p-4 ring-1 ring-zinc-800">
+    <p className="text-sm text-zinc-500">Needs AI Reply</p>
+    <p className="mt-1 text-3xl font-bold text-yellow-400">
+      {needsAiReplyCount}
+    </p>
+  </div>
+
+  <div className="rounded-2xl bg-zinc-900 p-4 ring-1 ring-zinc-800">
+    <p className="text-sm text-zinc-500">Ready to Post</p>
+    <p className="mt-1 text-3xl font-bold text-blue-400">
+      {readyToPostCount}
+    </p>
+  </div>
+
+  <div className="rounded-2xl bg-zinc-900 p-4 ring-1 ring-zinc-800">
+    <p className="text-sm text-zinc-500">Published</p>
+    <p className="mt-1 text-3xl font-bold text-green-400">
+      {completedReplyCount}
+    </p>
+  </div>
+</div>
           <div className="mb-6 flex flex-wrap gap-3">
   <button
     onClick={() => setReviewFilter("pending")}
@@ -794,24 +1176,28 @@ setMessage("");
                   </div>
 
                   {item.review_reply || item.posted_to_google ? (
-                    <span className="rounded-full bg-green-700 px-3 py-1 text-sm">
-                      Replied
-                    </span>
-                  ) : (
-                    <span className="rounded-full bg-yellow-700 px-3 py-1 text-sm">
-                      Needs Reply
-                    </span>
-                  )}
+  <span className="rounded-full bg-green-700 px-3 py-1 text-sm">
+    Replied
+  </span>
+) : item.ai_response ? (
+  <span className="rounded-full bg-blue-700 px-3 py-1 text-sm">
+    Ready to Post
+  </span>
+) : (
+  <span className="rounded-full bg-yellow-700 px-3 py-1 text-sm">
+    Needs Reply
+  </span>
+)}
                 </div>
 
                 <p className="mb-4 whitespace-pre-wrap text-zinc-300">
                   {item.review_text || "No written review."}
                 </p>
 
-                {item.ai_response && (
+                {item.ai_response && !item.review_reply && !item.posted_to_google && (
   <div className="mb-4 rounded-xl bg-black p-4">
     <p className="mb-2 text-sm text-zinc-500">
-      AI Reply (Editable)
+    Draft Reply — Review before posting
     </p>
 
     <textarea
@@ -834,7 +1220,7 @@ setMessage("");
                 {item.review_reply && (
                   <div className="mb-4 rounded-xl bg-green-950 p-4">
                     <p className="mb-2 text-sm text-green-400">
-                      Existing Google Reply
+                    Published Google Reply
                     </p>
                     <p className="whitespace-pre-wrap text-zinc-300">
                       {item.review_reply}
@@ -843,17 +1229,22 @@ setMessage("");
                 )}
 
                 <div className="flex flex-wrap gap-3">
-                  <button
+                  
+                  {!item.review_reply && !item.posted_to_google && (
+                    <button
                     onClick={() => generateReplyForSavedReview(item)}
                     disabled={generatingId === item.id}
                     className="rounded-xl bg-white px-4 py-2 text-black"
                   >
                     {generatingId === item.id
                       ? "Generating..."
+                      : item.ai_response
+                      ? "Regenerate AI Reply"
                       : "Generate AI Reply"}
                   </button>
+                )}
 
-                  {item.ai_response && (
+{item.ai_response && !item.review_reply && !item.posted_to_google && (
                     <button
                       onClick={() => copyText(item.ai_response || "", item.id)}
                       className="rounded-xl bg-zinc-700 px-4 py-2 text-white"
@@ -867,7 +1258,15 @@ setMessage("");
   !item.review_reply &&
   !item.posted_to_google && (
     <button
-      onClick={() => postReplyToGoogle(item)}
+    onClick={() => {
+      const confirmed = window.confirm(
+        "Post this reply to Google? You can still edit the draft before posting."
+      );
+    
+      if (confirmed) {
+        postReplyToGoogle(item);
+      }
+    }}
       disabled={postingId === item.id}
       className="rounded-xl bg-green-600 px-4 py-2 text-white"
     >
@@ -891,11 +1290,27 @@ setMessage("");
               </div>
             ))}
 
-            {reviews.length === 0 && (
-              <p className="text-zinc-500">
-                No reviews for this location yet. Click Import Google Reviews.
-              </p>
-            )}
+{reviews.length === 0 && (
+  <div className="rounded-2xl bg-zinc-900 p-6 text-zinc-400 ring-1 ring-zinc-800">
+    No reviews imported yet. Select a location, then click{" "}
+    <span className="font-semibold text-white">
+      Import Google Reviews
+    </span>
+    .
+  </div>
+)}
+
+{reviews.length > 0 && filteredReviews.length === 0 && reviewFilter === "pending" && (
+  <div className="rounded-2xl bg-green-950 p-6 text-green-300 ring-1 ring-green-900">
+    🎉 All caught up. There are no pending reviews waiting for a reply.
+  </div>
+)}
+
+{reviews.length > 0 && filteredReviews.length === 0 && reviewFilter === "replied" && (
+  <div className="rounded-2xl bg-zinc-900 p-6 text-zinc-400 ring-1 ring-zinc-800">
+    No replied reviews found yet.
+  </div>
+)}
           </div>
         </section>
       </section>

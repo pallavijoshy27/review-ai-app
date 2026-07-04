@@ -44,6 +44,7 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen bg-black text-white">
       <section className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6">
+        
         <h1 className="mb-3 text-4xl font-bold">
           Login
         </h1>
@@ -83,7 +84,6 @@ export default function LoginPage() {
         >
           Create Account
         </button>
-
         {message && (
           <p className="mt-6 rounded-xl bg-zinc-900 p-4 text-zinc-300">
             {message}

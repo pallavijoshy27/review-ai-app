@@ -6,23 +6,14 @@ const supabase = supabaseAdmin;
 
 function getPlanSettings(plan: string) {
   if (plan === "starter") {
-    return {
-      plan: "starter",
-      review_limit: 100,
-    };
+    return { plan: "starter", review_limit: 100 };
   }
 
   if (plan === "pro") {
-    return {
-      plan: "pro",
-      review_limit: 1000,
-    };
+    return { plan: "pro", review_limit: 1000 };
   }
 
-  return {
-    plan: "free",
-    review_limit: 5,
-  };
+  return { plan: "free", review_limit: 5 };
 }
 
 export async function POST(req: Request) {
@@ -74,6 +65,20 @@ export async function POST(req: Request) {
         })
         .eq("user_id", userId);
     }
+  }
+
+  if (event.type === "customer.subscription.deleted") {
+    const subscription = event.data.object as Stripe.Subscription;
+
+    await supabase
+      .from("subscriptions")
+      .update({
+        plan: "free",
+        status: "active",
+        review_limit: 5,
+        stripe_subscription_id: null,
+      })
+      .eq("stripe_subscription_id", subscription.id);
   }
 
   return Response.json({ received: true });
