@@ -1002,6 +1002,16 @@ const readyToPostCount = reviews.filter(
     support@aireviewresponder.com
   </a>
 </div>
+<div className="mt-4 rounded-2xl bg-zinc-900 p-4 text-sm text-zinc-400 ring-1 ring-zinc-800">
+  <p className="font-semibold text-white">Good to know</p>
+
+  <ul className="mt-3 list-disc space-y-2 pl-5">
+    <li>This app currently supports Google Business Profile reviews only.</li>
+    <li>Replies should be reviewed before publishing.</li>
+    <li>Only published replies count toward your monthly plan limit.</li>
+    <li>If a Google connection expires, reconnect your Google Business Profile.</li>
+  </ul>
+</div>
 </section>
         <section className="mb-8 rounded-3xl bg-zinc-950 p-6 ring-1 ring-zinc-800">
         <h2 className="mb-2 text-3xl font-bold">Business Locations</h2>
