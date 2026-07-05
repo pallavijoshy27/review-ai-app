@@ -773,8 +773,8 @@ const readyToPostCount = reviews.filter(
           <div>
             <h1 className="mb-3 text-5xl font-bold">AI Review Responder</h1>
             <p className="text-zinc-400">
-              Google Business Profile + AI review workflow
-            </p>
+  Manage, draft, and publish Google review replies in one place.
+</p>
           </div>
 
           <div className="flex flex-wrap gap-3">
@@ -782,14 +782,14 @@ const readyToPostCount = reviews.filter(
               onClick={connectGoogle}
               className="rounded-xl bg-white px-5 py-3 font-medium text-black"
             >
-              Connect Google
+              Connect Google Business Profile
             </button>
 
             <button
               onClick={syncGoogleLocations}
               className="rounded-xl bg-zinc-800 px-5 py-3 font-medium text-white"
             >
-              Sync Locations
+              Refresh Locations
             </button>
 
             <button
@@ -960,10 +960,23 @@ const readyToPostCount = reviews.filter(
   </section>
 )}
         <section className="mb-8 rounded-3xl bg-zinc-950 p-6 ring-1 ring-zinc-800">
-          <h2 className="mb-6 text-3xl font-bold">Locations</h2>
+        <h2 className="mb-2 text-3xl font-bold">Business Locations</h2>
+
+<p className="mb-6 text-zinc-400">
+  Choose the Google Business Profile location you want to manage.
+</p>
           {locations.length === 0 && (
   <div className="rounded-2xl bg-zinc-900 p-5 text-zinc-400 ring-1 ring-zinc-800 md:col-span-2 lg:col-span-4">
-    No Google locations found yet. Click <span className="font-semibold text-white">Connect Google</span>, then click <span className="font-semibold text-white">Sync Locations</span>.
+   No business locations found yet. Click{" "}
+<span className="font-semibold text-white">
+  Connect Google Business Profile
+</span>
+, then click{" "}
+<span className="font-semibold text-white">
+  Refresh Locations
+</span>
+.
+    Click <span className="font-semibold text-white">Connect Google</span>, then click <span className="font-semibold text-white">Sync Locations</span>.
   </div>
 )}
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -1053,7 +1066,11 @@ const readyToPostCount = reviews.filter(
 
         <div className="mb-8 grid gap-6 lg:grid-cols-2">
           <section className="rounded-3xl bg-zinc-950 p-6 ring-1 ring-zinc-800">
-            <h2 className="mb-6 text-3xl font-bold">Business Profile</h2>
+          <h2 className="mb-2 text-3xl font-bold">AI Reply Settings</h2>
+
+<p className="mb-6 text-zinc-400">
+  Tell the AI how your business should sound when replying to reviews.
+</p>
 
             <input
               value={businessName}
@@ -1077,7 +1094,7 @@ const readyToPostCount = reviews.filter(
             <textarea
               value={businessInfo}
               onChange={(e) => setBusinessInfo(e.target.value)}
-              placeholder="Business information"
+              placeholder="Describe your business, service style, tone, popular dishes, policies, and anything the AI should know before replying.Business information"
               className="h-48 w-full rounded-xl bg-zinc-900 p-4"
             />
 
@@ -1085,17 +1102,21 @@ const readyToPostCount = reviews.filter(
               onClick={saveBusinessProfile}
               className="mt-6 rounded-xl bg-white px-6 py-3 font-medium text-black"
             >
-              {savingProfile ? "Saving..." : "Save Business Profile"}
+              {savingProfile ? "Saving..." : "Save AI Settings"}
             </button>
           </section>
 
           <section className="rounded-3xl bg-zinc-950 p-6 ring-1 ring-zinc-800">
-            <h2 className="mb-6 text-3xl font-bold">Manual Reply Generator</h2>
+          <h2 className="mb-2 text-3xl font-bold">Manual Reply Draft</h2>
+
+<p className="mb-6 text-zinc-400">
+  Paste any review here to create a quick AI reply without importing it from Google.
+</p>
 
             <textarea
               value={manualReview}
               onChange={(e) => setManualReview(e.target.value)}
-              placeholder="Paste review here"
+              placeholder="Paste a customer review here..."
               className="h-48 w-full rounded-xl bg-zinc-900 p-4"
             />
 
@@ -1104,22 +1125,26 @@ const readyToPostCount = reviews.filter(
               disabled={loading}
               className="mt-6 rounded-xl bg-white px-6 py-3 font-medium text-black"
             >
-              {loading ? "Generating..." : "Generate AI Reply"}
+              {loading ? "Generating..." : "Draft Reply"}
             </button>
 
             {manualResponse && (
               <div className="mt-6 rounded-2xl bg-zinc-900 p-5">
                 <p className="text-zinc-300">{manualResponse}</p>
               </div>
-            )}
+            )}  
           </section>
         </div>
 
         <section className="rounded-3xl bg-zinc-950 p-6 ring-1 ring-zinc-800">
-          <h2 className="mb-6 text-3xl font-bold">
-            Google Reviews{" "}
-            {selectedLocation ? `for ${selectedLocation.name}` : ""}
-          </h2>
+        <h2 className="mb-2 text-3xl font-bold">
+  Review Queue{" "}
+  {selectedLocation ? `for ${selectedLocation.name}` : ""}
+</h2>
+
+<p className="mb-6 text-zinc-400">
+  Draft, review, edit, and publish replies to your Google reviews.
+</p>
           <div className="mb-6 grid gap-4 md:grid-cols-3">
   <div className="rounded-2xl bg-zinc-900 p-4 ring-1 ring-zinc-800">
     <p className="text-sm text-zinc-500">Needs AI Reply</p>
@@ -1151,7 +1176,7 @@ const readyToPostCount = reviews.filter(
         : "bg-zinc-800 text-white"
     }`}
   >
-    Pending ({pendingCount})
+    Needs Attention ({pendingCount})
   </button>
 
   <button
@@ -1162,7 +1187,7 @@ const readyToPostCount = reviews.filter(
         : "bg-zinc-800 text-white"
     }`}
   >
-    Replied ({repliedCount})
+    Published ({repliedCount})
   </button>
 
   <button
