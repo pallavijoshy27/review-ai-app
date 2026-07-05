@@ -1,6 +1,26 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 export default function Home() {
+  const router = useRouter();
+
+  useEffect(() => {
+    async function redirectIfLoggedIn() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session) {
+        router.replace("/dashboard");
+      }
+    }
+
+    redirectIfLoggedIn();
+  }, [router]);
   return (
     <main className="min-h-screen bg-black text-white">
       <section className="mx-auto flex min-h-screen max-w-6xl flex-col px-6 py-8">

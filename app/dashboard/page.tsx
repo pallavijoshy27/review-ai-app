@@ -901,20 +901,33 @@ const readyToPostCount = reviews.filter(
 
 <div className="flex flex-col gap-3">
 
-  <button
-    onClick={() => createCheckoutSession("starter")}
-    className="rounded-xl bg-white px-6 py-3 font-medium text-black"
-  >
-    ⭐ Upgrade to Starter
-  </button>
+<button
+  onClick={() => createCheckoutSession("starter")}
+  disabled={subscription.plan === "starter" || subscription.plan === "pro"}
+  className={`rounded-xl px-6 py-3 font-medium ${
+    subscription.plan === "starter" || subscription.plan === "pro"
+      ? "cursor-not-allowed bg-zinc-700 text-zinc-400"
+      : "bg-white text-black"
+  }`}
+>
+  {subscription.plan === "starter"
+    ? "Current Plan"
+    : subscription.plan === "pro"
+    ? "Starter Included"
+    : "⭐ Upgrade to Starter"}
+</button>
 
-  <button
-    onClick={() => createCheckoutSession("pro")}
-    className="rounded-xl bg-blue-600 px-6 py-3 font-medium text-white"
-  >
-    🚀 Upgrade to Pro
-  </button>
-
+<button
+  onClick={() => createCheckoutSession("pro")}
+  disabled={subscription.plan === "pro"}
+  className={`rounded-xl px-6 py-3 font-medium text-white ${
+    subscription.plan === "pro"
+      ? "cursor-not-allowed bg-zinc-700 text-zinc-400"
+      : "bg-blue-600"
+  }`}
+>
+  {subscription.plan === "pro" ? "Current Plan" : "🚀 Upgrade to Pro"}
+</button>
   <button
     onClick={openCustomerPortal}
     className="rounded-xl bg-zinc-800 px-6 py-3 text-white"
