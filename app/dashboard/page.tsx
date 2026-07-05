@@ -959,6 +959,41 @@ const readyToPostCount = reviews.filter(
 </div>
   </section>
 )}
+      <section className="mb-8 rounded-3xl bg-zinc-950 p-6 ring-1 ring-zinc-800">
+  <h2 className="text-2xl font-bold">
+    How to use this dashboard
+  </h2>
+
+  <div className="mt-4 grid gap-4 text-sm text-zinc-400 md:grid-cols-2 lg:grid-cols-4">
+    <div className="rounded-2xl bg-zinc-900 p-4 ring-1 ring-zinc-800">
+      <p className="font-semibold text-white">1. Connect Google</p>
+      <p className="mt-2">
+        Connect the Google account that manages your Business Profile.
+      </p>
+    </div>
+
+    <div className="rounded-2xl bg-zinc-900 p-4 ring-1 ring-zinc-800">
+      <p className="font-semibold text-white">2. Check Reviews</p>
+      <p className="mt-2">
+        Refresh locations, choose a business, and check for new Google reviews.
+      </p>
+    </div>
+
+    <div className="rounded-2xl bg-zinc-900 p-4 ring-1 ring-zinc-800">
+      <p className="font-semibold text-white">3. Draft Replies</p>
+      <p className="mt-2">
+        Let AI create reply drafts based on your business settings.
+      </p>
+    </div>
+
+    <div className="rounded-2xl bg-zinc-900 p-4 ring-1 ring-zinc-800">
+      <p className="font-semibold text-white">4. Review & Publish</p>
+      <p className="mt-2">
+        Edit each draft, approve it, and publish it to Google.
+      </p>
+    </div>
+  </div>
+</section>
         <section className="mb-8 rounded-3xl bg-zinc-950 p-6 ring-1 ring-zinc-800">
         <h2 className="mb-2 text-3xl font-bold">Business Locations</h2>
 
