@@ -53,13 +53,11 @@ export default function Home() {
             </p>
 
             <h2 className="text-5xl font-bold leading-tight md:text-6xl">
-              Respond to Google reviews faster with AI.
+            Reply to Google reviews faster, without losing your brand voice.
             </h2>
 
             <p className="mt-6 text-xl leading-8 text-zinc-400">
-              Connect your Google Business Profile, draft replies in your brand
-              voice, review them, and publish approved replies directly to
-              Google.
+            Connect your Google Business Profile, check for new reviews, draft replies with AI, edit them, and publish approved responses directly to Google.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-4">
@@ -79,7 +77,7 @@ export default function Home() {
             </div>
 
             <p className="mt-4 text-sm text-zinc-500">
-              Free plan includes 5 published replies per month.
+            Start free with 5 published Google review replies per month.
             </p>
           </div>
 
