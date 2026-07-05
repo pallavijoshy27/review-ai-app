@@ -993,6 +993,15 @@ const readyToPostCount = reviews.filter(
       </p>
     </div>
   </div>
+  <div className="mt-6 rounded-2xl bg-zinc-900 p-4 text-sm text-zinc-400 ring-1 ring-zinc-800">
+  Need help? Contact support at{" "}
+  <a
+    href="mailto:support@aireviewresponder.com"
+    className="font-semibold text-white underline"
+  >
+    support@aireviewresponder.com
+  </a>
+</div>
 </section>
         <section className="mb-8 rounded-3xl bg-zinc-950 p-6 ring-1 ring-zinc-800">
         <h2 className="mb-2 text-3xl font-bold">Business Locations</h2>
