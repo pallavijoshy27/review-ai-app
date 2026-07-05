@@ -918,7 +918,13 @@ const readyToPostCount = reviews.filter(
 </button>
 
 <button
-  onClick={() => createCheckoutSession("pro")}
+  onClick={() => {
+    if (subscription.plan === "starter") {
+      openCustomerPortal();
+    } else {
+      createCheckoutSession("pro");
+    }
+  }}
   disabled={subscription.plan === "pro"}
   className={`rounded-xl px-6 py-3 font-medium text-white ${
     subscription.plan === "pro"
@@ -926,14 +932,20 @@ const readyToPostCount = reviews.filter(
       : "bg-blue-600"
   }`}
 >
-  {subscription.plan === "pro" ? "Current Plan" : "🚀 Upgrade to Pro"}
+  {subscription.plan === "pro"
+    ? "Current Plan"
+    : subscription.plan === "starter"
+    ? "Upgrade to Pro"
+    : "🚀 Upgrade to Pro"}
 </button>
+{subscription.plan !== "free" && (
   <button
     onClick={openCustomerPortal}
     className="rounded-xl bg-zinc-800 px-6 py-3 text-white"
   >
     Manage Subscription
   </button>
+)}
 
 </div>
 
