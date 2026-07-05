@@ -30,20 +30,27 @@ export default function Home() {
           </h1>
 
           <div className="flex gap-3">
-            <Link
-              href="/login"
-              className="rounded-xl bg-zinc-800 px-5 py-3 font-medium text-white"
-            >
-              Login
-            </Link>
+  <a
+    href="mailto:support@aireviewresponder.com?subject=AI Review Responder Feedback"
+    className="rounded-xl bg-zinc-900 px-5 py-3 font-medium text-white ring-1 ring-zinc-800"
+  >
+    Feedback
+  </a>
 
-            <Link
-              href="/login"
-              className="rounded-xl bg-white px-5 py-3 font-medium text-black"
-            >
-              Get Started
-            </Link>
-          </div>
+  <Link
+    href="/login"
+    className="rounded-xl bg-zinc-800 px-5 py-3 font-medium text-white"
+  >
+    Login
+  </Link>
+
+  <Link
+    href="/login"
+    className="rounded-xl bg-white px-5 py-3 font-medium text-black"
+  >
+    Get Started
+  </Link>
+</div>
         </header>
 
         <div className="grid flex-1 items-center gap-12 py-20 lg:grid-cols-2">
