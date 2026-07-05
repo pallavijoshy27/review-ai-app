@@ -855,6 +855,13 @@ const readyToPostCount = reviews.filter(
     {subscription.plan === "starter" && "⭐ Starter Plan"}
     {subscription.plan === "pro" && "🚀 Pro Plan"}
   </h2>
+  {subscription.cancel_at_period_end && subscription.cancel_at && (
+  <div className="mt-4 rounded-2xl bg-yellow-950 p-4 text-yellow-200 ring-1 ring-yellow-800">
+    Your subscription is scheduled to cancel on{" "}
+    {new Date(subscription.cancel_at).toLocaleDateString()}.
+    You can manage or reactivate it from Manage Subscription.
+  </div>
+)}
 
   <p className="mt-2 text-zinc-400">
     {usagePercent}% of this month's replies used

@@ -66,17 +66,36 @@ export async function POST(req: Request) {
         .eq("user_id", userId);
     }
   }
-
+  if (event.type === "customer.subscription.updated") {
+    const subscription = event.data.object as Stripe.Subscription;
+  
+    const cancelAtPeriodEnd = subscription.cancel_at_period_end;
+    const cancelAt = subscription.cancel_at
+      ? new Date(subscription.cancel_at * 1000).toISOString()
+      : null;
+  
+    await supabase
+      .from("subscriptions")
+      .update({
+        cancel_at_period_end: cancelAtPeriodEnd,
+        cancel_at: cancelAt,
+        status: subscription.status,
+      })
+      .eq("stripe_subscription_id", subscription.id);
+  }
   if (event.type === "customer.subscription.deleted") {
     const subscription = event.data.object as Stripe.Subscription;
-
+  
     await supabase
       .from("subscriptions")
       .update({
         plan: "free",
         status: "active",
         review_limit: 5,
+        reviews_used: 0,
         stripe_subscription_id: null,
+        cancel_at_period_end: false,
+        cancel_at: null,
       })
       .eq("stripe_subscription_id", subscription.id);
   }
