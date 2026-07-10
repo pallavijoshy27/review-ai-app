@@ -14,6 +14,7 @@ export async function POST(req: Request) {
     const review = body.review;
     const tone = body.tone || "professional";
     const businessInfo = body.businessInfo || "";
+    const replyInstructions = body.replyInstructions || "";
     const userId = body.userId;
     const locationId = body.locationId;
     const reviewId = body.reviewId;
@@ -35,7 +36,10 @@ export async function POST(req: Request) {
 You are responding on behalf of this business:
 
 ${businessInfo}
-
+Additional reply instructions:
+${replyInstructions || "No additional instructions provided."}
+Business information:
+${businessInfo || "No business information provided."}
 The tone style should be: ${tone}
 
 Rules:

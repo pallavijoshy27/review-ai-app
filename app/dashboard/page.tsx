@@ -24,6 +24,7 @@ type BusinessProfile = {
   business_info: string | null;
   tone: string | null;
   user_id: string | null;
+  reply_instructions: string | null;
 };
 
 type Location = {
@@ -58,6 +59,7 @@ export default function Home() {
   const [tone, setTone] = useState("professional");
   const [businessName, setBusinessName] = useState("");
   const [businessInfo, setBusinessInfo] = useState("");
+  const [replyInstructions, setReplyInstructions] = useState("");
   const [profileId, setProfileId] = useState<number | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
 
@@ -228,6 +230,7 @@ setMessage("");
       setBusinessName(data.name || "");
       setBusinessInfo(data.business_info || "");
       setTone(data.tone || "professional");
+      setReplyInstructions(data.reply_instructions || "");
     }
   }
 
@@ -240,21 +243,23 @@ setMessage("");
       await supabase
         .from("business_profiles")
         .update({
-          name: businessName,
-          business_info: businessInfo,
-          tone,
-        })
+            name: businessName,
+            business_info: businessInfo,
+            reply_instructions: replyInstructions,
+            tone,
+          })
         .eq("id", profileId)
         .eq("user_id", userId);
     } else {
       const { data } = await supabase
         .from("business_profiles")
         .insert({
-          name: businessName,
-          business_info: businessInfo,
-          tone,
-          user_id: userId,
-        })
+            name: businessName,
+            business_info: businessInfo,
+            reply_instructions: replyInstructions,
+            tone,
+            user_id: userId,
+          })
         .select()
         .single();
 
@@ -337,12 +342,13 @@ setMessage("");
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          userId,
-          locationId: selectedLocationId,
-          tone,
-          businessInfo,
-          limit: 10,
-        }),
+            userId,
+            locationId: selectedLocationId,
+            tone,
+            businessInfo,
+            replyInstructions,
+            limit: 10,
+          }),
       });
   
       const data = await res.json();
@@ -386,6 +392,7 @@ setMessage("");
           review: item.review_text,
           tone,
           businessInfo,
+          replyInstructions,
           userId,
           locationId: item.location_id,
           reviewId: item.id,
@@ -595,6 +602,7 @@ setMessage("");
         review: manualReview,
         tone,
         businessInfo,
+        replyInstructions,
         userId,
         locationId: selectedLocationId,
       }),
@@ -1151,7 +1159,12 @@ const readyToPostCount = reviews.filter(
               placeholder="Describe your business, service style, tone, popular dishes, policies, and anything the AI should know before replying.Business information"
               className="h-48 w-full rounded-xl bg-zinc-900 p-4"
             />
-
+<textarea
+  value={replyInstructions}
+  onChange={(e) => setReplyInstructions(e.target.value)}
+  placeholder="Optional reply instructions. Example: Keep replies short, avoid repeating the same opening, make 5-star rating-only replies one sentence, do not mention buffet unless the customer mentions it."
+  className="mt-4 h-36 w-full rounded-xl bg-zinc-900 p-4"
+/>
             <button
               onClick={saveBusinessProfile}
               className="mt-6 rounded-xl bg-white px-6 py-3 font-medium text-black"

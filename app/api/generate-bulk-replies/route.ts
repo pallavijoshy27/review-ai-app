@@ -9,10 +9,12 @@ const supabase = supabaseAdmin;
 
 function buildPrompt({
   businessInfo,
+  replyInstructions,
   tone,
   review,
 }: {
   businessInfo: string;
+  replyInstructions: string;
   tone: string;
   review: string;
 }) {
@@ -45,6 +47,7 @@ export async function POST(req: Request) {
     const locationId = body.locationId;
     const tone = body.tone || "professional";
     const businessInfo = body.businessInfo || "";
+    const replyInstructions = body.replyInstructions || "";
     const limit = Math.min(Number(body.limit || 10), 10);
 
     if (!userId || !locationId) {
@@ -92,6 +95,7 @@ export async function POST(req: Request) {
               role: "user",
               content: buildPrompt({
                 businessInfo,
+                replyInstructions,
                 tone,
                 review: item.review_text || "",
               }),
